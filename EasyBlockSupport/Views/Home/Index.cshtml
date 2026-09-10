@@ -1,0 +1,510 @@
+﻿@model EasyBlockSupport.Models.ViewModels.DashboardViewModel
+@{
+    ViewData["Title"] = "Dashboard";
+    var userName = ViewBag.UserName as string ?? "User";
+    var companyName = ViewBag.CompanyName as string ?? "N/A";
+    var userRole = ViewBag.UserRole as string ?? "N/A";
+}
+
+<div class="container-fluid">
+
+    @if (ViewBag.ErrorMessage != null)
+    {
+        <div class="alert alert-danger">@ViewBag.ErrorMessage</div>
+    }
+
+    <!-- ============================================================ -->
+    <!-- ROW 1: KPI CARDS                                               -->
+    <!-- ============================================================ -->
+    <div class="row g-3 mb-4">
+        <!-- Total Members -->
+        <div class="col-md-6 col-lg-4 col-xl-2">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted mb-1 small">Total Members</p>
+                            <h3 class="mb-0 fw-bold">@Model.TotalMembers.ToString("N0")</h3>
+                        </div>
+                        <div class="rounded-circle bg-primary bg-opacity-10 p-2">
+                            <i class="bi bi-people-fill text-primary fs-4"></i>
+                        </div>
+                    </div>
+                    <div class="mt-2 small">
+                        <span class="text-primary">M: @Model.TotalMaleMembers</span>
+                        <span class="text-danger ms-2">F: @Model.TotalFemaleMembers</span>
+                        @if (Model.TotalUnknownGender > 0)
+                        {
+                            <span class="text-muted ms-2">O: @Model.TotalUnknownGender</span>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Total Users -->
+        <div class="col-md-6 col-lg-4 col-xl-2">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted mb-1 small">Total Users</p>
+                            <h3 class="mb-0 fw-bold">@Model.TotalUsers.ToString("N0")</h3>
+                        </div>
+                        <div class="rounded-circle bg-info bg-opacity-10 p-2">
+                            <i class="bi bi-person-badge-fill text-info fs-4"></i>
+                        </div>
+                    </div>
+                    <div class="mt-2 small text-muted">System accounts</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Total Companies -->
+        <div class="col-md-6 col-lg-4 col-xl-2">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted mb-1 small">Companies</p>
+                            <h3 class="mb-0 fw-bold">@Model.TotalCompanies.ToString("N0")</h3>
+                        </div>
+                        <div class="rounded-circle bg-success bg-opacity-10 p-2">
+                            <i class="bi bi-building-fill text-success fs-4"></i>
+                        </div>
+                    </div>
+                    <div class="mt-2 small text-muted">Registered</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Total Loans -->
+        <div class="col-md-6 col-lg-4 col-xl-2">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted mb-1 small">Total Loans</p>
+                            <h3 class="mb-0 fw-bold">@Model.TotalLoans.ToString("N0")</h3>
+                        </div>
+                        <div class="rounded-circle bg-warning bg-opacity-10 p-2">
+                            <i class="bi bi-cash-stack text-warning fs-4"></i>
+                        </div>
+                    </div>
+                    <div class="mt-2 small">
+                        <span class="text-success fw-bold">KES @Model.TotalLoanAmount.ToString("N0")</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Contributions -->
+        <div class="col-md-6 col-lg-4 col-xl-2">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted mb-1 small">Contributions</p>
+                            <h3 class="mb-0 fw-bold">@Model.TotalContributions.ToString("N0")</h3>
+                        </div>
+                        <div class="rounded-circle bg-secondary bg-opacity-10 p-2">
+                            <i class="bi bi-piggy-bank-fill text-secondary fs-4"></i>
+                        </div>
+                    </div>
+                    <div class="mt-2 small text-muted">KES (Deposits + Shares + Reg)</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Active Loans -->
+        <div class="col-md-6 col-lg-4 col-xl-2">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted mb-1 small">Active Loans</p>
+                            <h3 class="mb-0 fw-bold">@Model.ActiveLoans.ToString("N0")</h3>
+                        </div>
+                        <div class="rounded-circle bg-danger bg-opacity-10 p-2">
+                            <i class="bi bi-graph-up-arrow text-danger fs-4"></i>
+                        </div>
+                    </div>
+                    <div class="mt-2 small text-muted">Approved / Disbursed</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- ROW 2: LINE CHARTS                                             -->
+    <!-- ============================================================ -->
+    <div class="row g-3 mb-4">
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-0">
+                    <h6 class="mb-0 fw-bold">
+                        <i class="bi bi-graph-up text-primary me-2"></i>Members vs Users (Last 12 Months)
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="membersUsersChart" height="130"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-0">
+                    <h6 class="mb-0 fw-bold">
+                        <i class="bi bi-graph-up text-success me-2"></i>Users vs Companies (Last 12 Months)
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="usersCompaniesChart" height="130"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- ROW 3: BAR / DOUGHNUT CHARTS                                   -->
+    <!-- ============================================================ -->
+    <div class="row g-3 mb-4">
+        <!-- Gender Doughnut -->
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-0">
+                    <h6 class="mb-0 fw-bold">
+                        <i class="bi bi-pie-chart-fill text-primary me-2"></i>Members by Gender
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="genderChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loans by Gender -->
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-0">
+                    <h6 class="mb-0 fw-bold">
+                        <i class="bi bi-bar-chart-fill text-warning me-2"></i>Loans by Gender
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="loansGenderChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Contribution Breakdown -->
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-0">
+                    <h6 class="mb-0 fw-bold">
+                        <i class="bi bi-cash-coin text-success me-2"></i>Contribution Breakdown
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="contribChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- ROW 4: LOANS PER MONTH + RECENT TRANSACTIONS                  -->
+    <!-- ============================================================ -->
+    <div class="row g-3 mb-4">
+        <div class="col-lg-7">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-0">
+                    <h6 class="mb-0 fw-bold">
+                        <i class="bi bi-bar-chart-line text-info me-2"></i>Loans Issued per Month
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="loansMonthChart" height="120"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-5">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-0 d-flex justify-content-between">
+                    <h6 class="mb-0 fw-bold">
+                        <i class="bi bi-clock-history text-secondary me-2"></i>Recent Transactions
+                    </h6>
+                    <span class="badge bg-secondary">Last 10</span>
+                </div>
+                <div class="card-body p-0" style="max-height: 380px; overflow-y:auto;">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th>Type</th>
+                                <th>Member</th>
+                                <th class="text-end">Amount</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (Model.RecentTransactions.Any())
+                            {
+                                foreach (var tx in Model.RecentTransactions)
+                                {
+                                    var badgeClass = tx.Status == "CONFIRMED" ? "bg-success" :
+                                    tx.Status == "PENDING" ? "bg-warning text-dark" :
+                                    "bg-danger";
+                                    <tr>
+                                        <td><small class="fw-bold">@tx.TransactionType</small><br /><small class="text-muted">@tx.Timestamp.ToString("dd MMM HH:mm")</small></td>
+                                        <td><small>@tx.MemberNo</small></td>
+                                        <td class="text-end"><small>@tx.Amount.ToString("N0")</small></td>
+                                        <td><span class="badge @badgeClass" style="font-size:0.65rem;">@tx.Status</span></td>
+                                    </tr>
+                                }
+                            }
+                            else
+                            {
+                                <tr><td colspan="4" class="text-center text-muted py-4">No recent transactions</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script>
+        // ===== Shared data from server =====
+        const months = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Months));
+        const membersPerMonth = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.MembersPerMonth));
+        const usersPerMonth = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.UsersPerMonth));
+        const companiesPerMonth = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.CompaniesPerMonth));
+        const loansPerMonth = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.LoansPerMonth));
+        const loanAmountsPerMonth = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.LoanAmountsPerMonth));
+
+        const totalMale = @Model.TotalMaleMembers;
+        const totalFemale = @Model.TotalFemaleMembers;
+        const totalUnknown = @Model.TotalUnknownGender;
+
+        const maleLoanCount = @Model.MaleLoanCount;
+        const femaleLoanCount = @Model.FemaleLoanCount;
+        const maleLoanAmount = @Model.MaleLoanAmount;
+        const femaleLoanAmount = @Model.FemaleLoanAmount;
+
+        const totalDeposits = @Model.TotalDeposits;
+        const totalShareCapital = @Model.TotalShareCapital;
+        const totalRegFees = @Model.TotalRegFees;
+
+        // ===== Chart defaults =====
+        Chart.defaults.font.family = "'Segoe UI', Tahoma, sans-serif";
+        Chart.defaults.color = '#6c757d';
+
+        // ===== 1. Members vs Users (Line) =====
+        new Chart(document.getElementById('membersUsersChart'), {
+            type: 'line',
+            data: {
+                labels: months,
+                datasets: [
+                    {
+                        label: 'Members',
+                        data: membersPerMonth,
+                        borderColor: '#0d6efd',
+                        backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 2,
+                        pointRadius: 4,
+                        pointBackgroundColor: '#0d6efd'
+                    },
+                    {
+                        label: 'Users',
+                        data: usersPerMonth,
+                        borderColor: '#0dcaf0',
+                        backgroundColor: 'rgba(13, 202, 240, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 2,
+                        pointRadius: 4,
+                        pointBackgroundColor: '#0dcaf0'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: { legend: { position: 'bottom' } },
+                scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+            }
+        });
+
+        // ===== 2. Users vs Companies (Line) =====
+        new Chart(document.getElementById('usersCompaniesChart'), {
+            type: 'line',
+            data: {
+                labels: months,
+                datasets: [
+                    {
+                        label: 'Users',
+                        data: usersPerMonth,
+                        borderColor: '#0dcaf0',
+                        backgroundColor: 'rgba(13, 202, 240, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 2
+                    },
+                    {
+                        label: 'Companies',
+                        data: companiesPerMonth,
+                        borderColor: '#198754',
+                        backgroundColor: 'rgba(25, 135, 84, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 2
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: { legend: { position: 'bottom' } },
+                scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+            }
+        });
+
+        // ===== 3. Gender Doughnut =====
+        new Chart(document.getElementById('genderChart'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Male', 'Female', 'Unknown'],
+                datasets: [{
+                    data: [totalMale, totalFemale, totalUnknown],
+                    backgroundColor: ['#0d6efd', '#dc3545', '#adb5bd'],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: { position: 'bottom' },
+                    tooltip: {
+                        callbacks: {
+                            label: function (ctx) {
+                                const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                                const pct = total ? ((ctx.parsed / total) * 100).toFixed(1) : 0;
+                                return ctx.label + ': ' + ctx.parsed + ' (' + pct + '%)';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // ===== 4. Loans by Gender (Bar) =====
+        new Chart(document.getElementById('loansGenderChart'), {
+            type: 'bar',
+            data: {
+                labels: ['Male', 'Female'],
+                datasets: [
+                    {
+                        label: 'Loan Count',
+                        data: [maleLoanCount, femaleLoanCount],
+                        backgroundColor: '#0d6efd',
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'Loan Amount (KES)',
+                        data: [maleLoanAmount, femaleLoanAmount],
+                        backgroundColor: '#ffc107',
+                        yAxisID: 'y1'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: { legend: { position: 'bottom' } },
+                scales: {
+                    y: { beginAtZero: true, position: 'left', ticks: { precision: 0 } },
+                    y1: { beginAtZero: true, position: 'right', grid: { drawOnChartArea: false } }
+                }
+            }
+        });
+
+        // ===== 5. Contribution Breakdown (Bar) =====
+        new Chart(document.getElementById('contribChart'), {
+            type: 'bar',
+            data: {
+                labels: ['Deposits', 'Share Capital', 'Reg Fees'],
+                datasets: [{
+                    label: 'Amount (KES)',
+                    data: [totalDeposits, totalShareCapital, totalRegFees],
+                    backgroundColor: ['#0dcaf0', '#198754', '#6f42c1'],
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function (ctx) {
+                                return 'KES ' + ctx.parsed.y.toLocaleString();
+                            }
+                        }
+                    }
+                },
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+
+        // ===== 6. Loans per Month (Bar + Line) =====
+        new Chart(document.getElementById('loansMonthChart'), {
+            data: {
+                labels: months,
+                datasets: [
+                    {
+                        type: 'bar',
+                        label: 'Loan Count',
+                        data: loansPerMonth,
+                        backgroundColor: 'rgba(13, 202, 240, 0.6)',
+                        borderColor: '#0dcaf0',
+                        borderWidth: 1,
+                        yAxisID: 'y'
+                    },
+                    {
+                        type: 'line',
+                        label: 'Loan Amount (KES)',
+                        data: loanAmountsPerMonth,
+                        borderColor: '#dc3545',
+                        backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                        tension: 0.4,
+                        borderWidth: 2,
+                        pointRadius: 3,
+                        yAxisID: 'y1'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: { legend: { position: 'bottom' } },
+                scales: {
+                    y: { beginAtZero: true, position: 'left', ticks: { precision: 0 } },
+                    y1: {
+                        beginAtZero: true, position: 'right',
+                        grid: { drawOnChartArea: false },
+                        ticks: { callback: v => 'KES ' + (v / 1000).toFixed(0) + 'K' }
+                    }
+                }
+            }
+        });
+    </script>
+}
