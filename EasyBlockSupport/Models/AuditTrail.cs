@@ -4,8 +4,9 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace EasyBlockSupport.Models
 {
-	[Table("AuditTrail")]
-	public class AuditTrail
+    //[Table("AuditTrail")]
+    [Table("RuntimeData")]
+    public class AuditTrail
 	{
 		[Key]
 		public long AuditId { get; set; }

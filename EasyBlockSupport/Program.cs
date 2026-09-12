@@ -4,9 +4,6 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using EasyBlockSupport.Data;
-using EasyBlockSupport.Services;
-using System;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -65,12 +62,18 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
         builder.Configuration.GetConnectionString("BlockchainDb"),
         sqlOptions => sqlOptions.CommandTimeout(commandTimeout)));
 
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("BlockchainDb"),
+        sqlOptions => sqlOptions.CommandTimeout(commandTimeout)));
+
 // Register Application Services
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IFileProcessingService, FileProcessingService>();
 builder.Services.AddScoped<ICompanyContextService, CompanyContextService>();
 builder.Services.AddScoped<ICompanyService, CompanyService>();
+builder.Services.AddScoped<IFunctionService, FunctionService>();
 builder.Services.AddScoped<IBlockchainService, BlockchainService>();
 builder.Services.AddScoped<ILocationService, LocationService>();
 

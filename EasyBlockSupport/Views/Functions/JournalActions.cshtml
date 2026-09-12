@@ -1,0 +1,397 @@
+﻿@{
+    ViewData["Title"] = "Journal Reverse / Delete";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container-fluid">   
+
+    <div class="row">
+        <div class="col-md-10 mx-auto">
+            <div class="col-10">
+                <h2 class="page-title mb-0">
+                    <i class="bi bi-journal-text text-primary me-2"></i>
+                    Journal Reverse / Delete
+                </h2>
+            </div>
+
+            @if (TempData["ErrorMessage"] != null)
+            {
+                <div class="alert alert-danger alert-dismissible fade show">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    @TempData["ErrorMessage"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            }
+            @if (TempData["SuccessMessage"] != null)
+            {
+                <div class="alert alert-success alert-dismissible fade show">
+                    <i class="bi bi-check-circle-fill me-2"></i>
+                    @TempData["SuccessMessage"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            }
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-search me-2"></i> Find Journal
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Search by <strong>Voucher Number</strong> or <strong>Transaction Number</strong>.
+                        <strong>Posted</strong> journals can be <strong>reversed</strong> (an offsetting
+                        journal is created). <strong>Draft</strong> journals can be <strong>deleted</strong>.
+                    </div>
+
+                    <div class="input-group mb-3">
+                        <input type="text" id="searchTerm" class="form-control form-control-lg"
+                               placeholder="Enter Voucher No or Transaction No (e.g., JV1209251430001 / TXN20260912ABC123)"
+                               autocomplete="off" />
+                        <button class="btn btn-primary" id="searchBtn">
+                            <i class="bi bi-search"></i> Search
+                        </button>
+                    </div>
+
+                    <div id="journalDetails" style="display:none;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Full-screen loading overlay (matches Index / Delete pages) -->
+<div id="loadingOverlay"
+     style="display:none; position:fixed; top:0; left:0; width:100%; height:100%;
+            background:rgba(0,0,0,0.5); z-index:9999; text-align:center; padding-top:20%;">
+    <div class="spinner-border text-light" style="width:3rem; height:3rem;" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+    <div class="text-light mt-2" id="loadingMessage">Processing...</div>
+</div>
+
+@Html.AntiForgeryToken()
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        // ============================================================
+        // HELPERS
+        // ============================================================
+        function showLoading(show, message) {
+            if (show) {
+                $('#loadingMessage').text(message || 'Processing...');
+                $('#loadingOverlay').fadeIn(150);
+            } else {
+                $('#loadingOverlay').fadeOut(150);
+            }
+        }
+
+        function escapeHtml(text) {
+            if (text === null || text === undefined) return '';
+            const div = document.createElement('div');
+            div.textContent = String(text);
+            return div.innerHTML;
+        }
+
+        function formatNumber(n) {
+            if (n === null || n === undefined) return '';
+            return Number(n).toLocaleString(undefined,
+                { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        // ============================================================
+        // SEARCH JOURNAL
+        // ============================================================
+        async function searchJournal() {
+            const term = document.getElementById('searchTerm').value.trim();
+            const box = document.getElementById('journalDetails');
+
+            if (!term) {
+                Swal.fire('Input required',
+                    'Please enter a voucher number or transaction number.',
+                    'warning');
+                return;
+            }
+
+            box.style.display = 'block';
+            box.innerHTML = '';
+
+            showLoading(true, 'Searching for journal...');
+
+            try {
+                const resp = await fetch(
+                    `/Functions/GetJournalDetails?searchTerm=${encodeURIComponent(term)}`);
+                const data = await resp.json();
+
+                showLoading(false);
+
+                if (!data.success) {
+                    box.innerHTML = `
+                        <div class="alert alert-danger">
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                            ${escapeHtml(data.message)}
+                        </div>`;
+                    return;
+                }
+
+                render(data.journal);
+            } catch (err) {
+                showLoading(false);
+                console.error(err);
+                box.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        Unexpected error: ${escapeHtml(err.message)}
+                    </div>`;
+            }
+        }
+
+        // ============================================================
+        // RENDER JOURNAL DETAILS + ACTION BUTTON
+        // ============================================================
+        function render(j) {
+            const box = document.getElementById('journalDetails');
+
+            const statusBadge = j.posted
+                ? '<span class="badge bg-success">POSTED</span>'
+                : '<span class="badge bg-secondary">DRAFT</span>';
+
+            const linesHtml = j.lines.map(l => `
+                <tr>
+                    <td>${escapeHtml(l.accountNo)}</td>
+                    <td>${escapeHtml(l.accountName)}</td>
+                    <td>${escapeHtml(l.narration)}</td>
+                    <td class="text-end">${l.debit > 0 ? formatNumber(l.debit) : ''}</td>
+                    <td class="text-end">${l.credit > 0 ? formatNumber(l.credit) : ''}</td>
+                </tr>`).join('');
+
+            const actionButtonHtml = j.posted
+                ? `<button type="button" class="btn btn-warning" id="actionBtn" disabled>
+                       <i class="bi bi-arrow-counterclockwise"></i> Reverse Journal
+                   </button>`
+                : `<button type="button" class="btn btn-danger" id="actionBtn" disabled>
+                       <i class="bi bi-trash"></i> Delete Journal
+                   </button>`;
+
+            box.innerHTML = `
+                <div class="card mt-3">
+                    <div class="card-header bg-light d-flex justify-content-between">
+                        <h6 class="mb-0">Journal ${escapeHtml(j.voucherNo)}</h6>
+                        ${statusBadge}
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-2">
+                                <small class="text-muted">Voucher No</small>
+                                <p class="fw-bold mb-0">${escapeHtml(j.voucherNo)}</p>
+                            </div>
+                            <div class="col-md-2">
+                                <small class="text-muted">Transaction No</small>
+                                <p class="fw-bold mb-0">${escapeHtml(j.transactionNo || 'N/A')}</p>
+                            </div>
+                            <div class="col-md-2">
+                                <small class="text-muted">Voucher Date</small>
+                                <p>${escapeHtml(j.voucherDate)}</p>
+                            </div>
+                            <div class="col-md-2">
+                                <small class="text-muted">Member</small>
+                                <p>${escapeHtml(j.memberNo)}</p>
+                            </div>
+                            <div class="col-md-2">
+                                <small class="text-muted">Created By</small>
+                                <p>${escapeHtml(j.createdBy)}</p>
+                            </div>
+                            <div class="col-md-2">
+                                <small class="text-muted">Narration</small>
+                                <p>${escapeHtml(j.narration)}</p>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Account</th><th>Name</th><th>Narration</th>
+                                        <th class="text-end">Debit</th><th class="text-end">Credit</th>
+                                    </tr>
+                                </thead>
+                                <tbody>${linesHtml}</tbody>
+                                <tfoot>
+                                    <tr class="fw-bold">
+                                        <td colspan="3" class="text-end">Totals</td>
+                                        <td class="text-end">${formatNumber(j.totalDebit)}</td>
+                                        <td class="text-end">${formatNumber(j.totalCredit)}</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+
+                        <hr />
+
+                        <div class="mb-3">
+                            <label for="reason" class="form-label fw-bold text-danger">Reason *</label>
+                            <textarea id="reason" class="form-control" rows="3"
+                                      placeholder="Enter the reason..."></textarea>
+                        </div>
+
+                        <div class="mb-3 form-check">
+                            <input class="form-check-input" type="checkbox" id="confirmCheck">
+                            <label class="form-check-label text-danger" for="confirmCheck">
+                                I understand this action cannot be undone.
+                            </label>
+                        </div>
+
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="button" class="btn btn-secondary" onclick="clearSearch()">
+                                <i class="bi bi-x-circle"></i> Clear
+                            </button>
+                            ${actionButtonHtml}
+                        </div>
+                    </div>
+                </div>`;
+
+            // Checkbox enables the action button
+            document.getElementById('confirmCheck').addEventListener('change', function () {
+                document.getElementById('actionBtn').disabled = !this.checked;
+            });
+
+            // Action button opens the SweetAlert confirmation
+            document.getElementById('actionBtn').addEventListener('click', function () {
+                confirmJournalAction(j);
+            });
+        }
+
+        // ============================================================
+        // CONFIRM ACTION VIA SWEETALERT + PROGRAMMATIC POST
+        // ============================================================
+        async function confirmJournalAction(j) {
+            const reason = document.getElementById('reason').value.trim();
+
+            if (!reason) {
+                Swal.fire('Reason required',
+                    'Please provide a reason for this action.',
+                    'warning');
+                return;
+            }
+
+            const isReverse = j.posted;
+            const title = isReverse ? 'Reverse this journal?' : 'Delete this journal?';
+            const body = isReverse
+                ? `<p>An <strong>offsetting journal</strong> will be posted to cancel this voucher.</p>
+                   <p>The original voucher <strong>${escapeHtml(j.voucherNo)}</strong> will remain
+                   on the ledger and be marked as reversed.</p>`
+                : `<p>This draft journal <strong>${escapeHtml(j.voucherNo)}</strong>
+                   will be <strong>permanently deleted</strong>.</p>`;
+
+            const result = await Swal.fire({
+                title: title,
+                html: `
+                    ${body}
+                    <table class="table table-sm text-start mt-2">
+                        <tr><td><strong>Voucher:</strong></td><td>${escapeHtml(j.voucherNo)}</td></tr>
+                        <tr><td><strong>Transaction:</strong></td><td>${escapeHtml(j.transactionNo || 'N/A')}</td></tr>
+                        <tr><td><strong>Date:</strong></td><td>${escapeHtml(j.voucherDate)}</td></tr>
+                        <tr><td><strong>Debit:</strong></td><td>${formatNumber(j.totalDebit)}</td></tr>
+                        <tr><td><strong>Credit:</strong></td><td>${formatNumber(j.totalCredit)}</td></tr>
+                        <tr><td><strong>Reason:</strong></td><td>${escapeHtml(reason)}</td></tr>
+                    </table>`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: isReverse ? 'Yes, reverse it' : 'Yes, delete it',
+                cancelButtonText: 'Cancel',
+                confirmButtonColor: isReverse ? '#ffc107' : '#dc3545',
+                cancelButtonColor: '#6c757d',
+                reverseButtons: true
+            });
+
+            if (!result.isConfirmed) return;
+
+            // Build and submit a hidden POST form
+            const form = document.createElement('form');
+            form.method = 'post';
+            form.action = isReverse
+                ? '/Functions/ConfirmReverseJournal'
+                : '/Functions/ConfirmDeleteJournal';
+            form.style.display = 'none';
+
+            // Antiforgery token from the rendered page
+            const tokenInput = document.querySelector('input[name="__RequestVerificationToken"]');
+            if (tokenInput) {
+                form.appendChild(tokenInput.cloneNode(true));
+            }
+
+            const voucherInput = document.createElement('input');
+            voucherInput.type = 'hidden';
+            voucherInput.name = 'voucherNo';
+            voucherInput.value = j.voucherNo;
+            form.appendChild(voucherInput);
+
+            const reasonInput = document.createElement('input');
+            reasonInput.type = 'hidden';
+            reasonInput.name = 'reason';
+            reasonInput.value = reason;
+            form.appendChild(reasonInput);
+
+            document.body.appendChild(form);
+
+            showLoading(true, isReverse ? 'Reversing journal...' : 'Deleting journal...');
+            form.submit();
+        }
+
+        // ============================================================
+        // CLEAR
+        // ============================================================
+        function clearSearch() {
+            document.getElementById('searchTerm').value = '';
+            document.getElementById('journalDetails').style.display = 'none';
+            document.getElementById('journalDetails').innerHTML = '';
+        }
+
+        // ============================================================
+        // WIRING
+        // ============================================================
+        $(document).ready(function () {
+            $('#searchBtn').on('click', searchJournal);
+
+            $('#searchTerm').on('keypress', function (e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    searchJournal();
+                }
+            });
+
+            // Success toast from TempData
+            @if (TempData["SuccessMessage"] != null)
+            {
+                    <text>
+                    Swal.fire({
+                        toast: true,
+                        position: 'top-end',
+                        icon: 'success',
+                        title: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(TempData["SuccessMessage"])),
+                        showConfirmButton: false,
+                        timer: 4000,
+                        timerProgressBar: true
+                    });
+                    </text>
+            }
+
+            // Error toast from TempData
+            @if (TempData["ErrorMessage"] != null)
+            {
+                    <text>
+                    Swal.fire({
+                        toast: true,
+                        position: 'top-end',
+                        icon: 'error',
+                        title: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(TempData["ErrorMessage"])),
+                        showConfirmButton: false,
+                        timer: 5000,
+                        timerProgressBar: true
+                    });
+                    </text>
+            }
+        });
+    </script>
+}

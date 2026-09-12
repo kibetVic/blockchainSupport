@@ -90,15 +90,15 @@ namespace EasyBlockSupport.Controllers
                         return View(model);
                     }
 
-                    // ============================================================
-                    // ✅ SUPERUSER GATE — only Superuser == 1 can log in
-                    // ============================================================
-                    if (user.Superuser != 1)
-                    {
-                        _logger.LogWarning($"Non-superuser '{user.UserName}' attempted to log in.");
-                        ModelState.AddModelError(string.Empty, "Access denied. Only Super Users can log in.");
-                        return View(model);
-                    }
+                    //// ============================================================
+                    //// ✅ SUPERUSER GATE — only Superuser == 1 can log in
+                    //// ============================================================
+                    //if (user.Superuser != 1)
+                    //{
+                    //    _logger.LogWarning($"Non-superuser '{user.UserName}' attempted to log in.");
+                    //    ModelState.AddModelError(string.Empty, "Access denied. Only Super Users can log in.");
+                    //    return View(model);
+                    //}
 
                     // Check if account is locked
                     if (user.IsLocked == true)
@@ -495,6 +495,88 @@ namespace EasyBlockSupport.Controllers
             return View();
         }
 
+        #region Audit Helper
+
+        /// <summary>
+        /// Writes one row to RuntimeData / AuditTrails capturing who did what,
+        /// from where, and why. Safe to call from any controller action.
+        /// </summary>
+        private async Task WriteAuditTrailAsync(
+            string actionType,
+            string actionDescription,
+            string tableName,
+            string? recordId,
+            object? oldValue,
+            object? newValue,
+            object? extraData,
+            string? companyCode = null,
+            string? blockchainTxId = null)
+        {
+            try
+            {
+                var http = HttpContext;
+
+                // -------- IP --------
+                string? ip = http?.Request.Headers["X-Forwarded-For"].FirstOrDefault();
+                if (!string.IsNullOrWhiteSpace(ip))
+                    ip = ip.Split(',')[0].Trim();
+                if (string.IsNullOrWhiteSpace(ip))
+                    ip = http?.Connection.RemoteIpAddress?.ToString();
+                if (ip == "::1") ip = "127.0.0.1";
+
+                // -------- Browser --------
+                string? ua = http?.Request.Headers["User-Agent"].FirstOrDefault();
+                if (!string.IsNullOrWhiteSpace(ua) && ua.Length > 500)
+                    ua = ua.Substring(0, 500);
+
+                // -------- Host --------
+                string? host = http?.Request.Host.Host;
+                if (string.IsNullOrEmpty(host))
+                {
+                    try { host = System.Net.Dns.GetHostName(); }
+                    catch { host = Environment.MachineName; }
+                }
+
+                var userId = User?.FindFirstValue(ClaimTypes.NameIdentifier) ?? "SYSTEM";
+                var userName = User?.Identity?.Name
+                               ?? User?.FindFirstValue("FullName")
+                               ?? "SYSTEM";
+
+                var now = DateTime.Now;
+
+                var audit = new AuditTrail
+                {
+                    CompanyCode = companyCode ?? User?.FindFirstValue("CompanyCode"),
+                    UserId = userId,
+                    UserName = userName,
+                    ActionType = actionType,
+                    ActionDescription = actionDescription,
+                    TableName = tableName,
+                    RecordId = recordId,
+                    OldValue = oldValue == null ? null : System.Text.Json.JsonSerializer.Serialize(oldValue),
+                    NewValue = newValue == null ? null : System.Text.Json.JsonSerializer.Serialize(newValue),
+                    ExtraData = extraData == null ? null : System.Text.Json.JsonSerializer.Serialize(extraData),
+                    IpAddress = ip,
+                    BrowserAgent = ua,
+                    HostName = host,
+                    CorrelationId = HttpContext?.TraceIdentifier ?? Guid.NewGuid().ToString("N"),
+                    AuditTime = now,
+                    Module = "AUTH",
+                    BlockchainTxId = blockchainTxId
+                };
+
+                _context.AuditTrails.Add(audit);
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                // Audit must never break the main operation
+                _logger.LogError(ex, "Failed to write audit trail for {Action}", actionType);
+            }
+        }
+
+        #endregion
+
 
         [HttpGet]
         [Authorize]
@@ -574,6 +656,23 @@ namespace EasyBlockSupport.Controllers
                 if (user.Superuser != 1)
                 {
                     _logger.LogWarning($"Non-superuser {user.UserName} attempted to switch Saccos.");
+
+                    // ▼▼▼ Audit the denied attempt ▼▼▼
+                    await WriteAuditTrailAsync(
+                        actionType: "COMPANY_SWITCH_DENIED",
+                        actionDescription: $"Non-superuser {user.UserName} attempted to switch to {companyCode}",
+                        tableName: "UserAccounts1",
+                        recordId: user.UserId.ToString(),
+                        oldValue: new { CompanyCode = user.CompanyCode },
+                        newValue: null,
+                        extraData: new
+                        {
+                            attemptedCompanyCode = companyCode,
+                            isSuperuser = false,
+                            reason = "Only Super Users can switch Saccos"
+                        },
+                        companyCode: user.CompanyCode);
+
                     TempData["ErrorMessage"] = "Access denied. Only Super Users can switch Saccos.";
                     return RedirectToAction("CompanySwitch");
                 }
@@ -597,6 +696,10 @@ namespace EasyBlockSupport.Controllers
 
                 // Update user's company code in database
                 var oldCompanyCode = user.CompanyCode;
+                var oldCompanyName = (await _context.Companies
+                                        .FirstOrDefaultAsync(c => c.CompanyCode == oldCompanyCode))
+                                        ?.CompanyName;
+
                 user.CompanyCode = companyCode;
                 await _context.SaveChangesAsync();
 
@@ -619,34 +722,27 @@ namespace EasyBlockSupport.Controllers
 
                 // 4. Create fresh claims with ALL required claims
                 var claims = new List<Claim>
-                {
-                    new Claim(ClaimTypes.NameIdentifier, updatedUser.UserId.ToString()),
-                    new Claim(ClaimTypes.Name, updatedUser.UserName ?? string.Empty),
-                    new Claim("FullName", updatedUser.UserName ?? string.Empty),
-                    new Claim("Email", updatedUser.Email ?? string.Empty),
-                    new Claim("UserId", updatedUser.UserId.ToString()),
-                    new Claim("CompanyCode", updatedUser.CompanyCode ?? "000"),
-                    new Claim("CompanyName", companyName),
-                    new Claim("UserLoginId", updatedUser.UserLoginId ?? string.Empty),
-                    new Claim("UserGroup", updatedUser.UserGroup ?? "Member"),
-                    new Claim(ClaimTypes.Role, updatedUser.UserGroup ?? "Member")
-                };
+        {
+            new Claim(ClaimTypes.NameIdentifier, updatedUser.UserId.ToString()),
+            new Claim(ClaimTypes.Name, updatedUser.UserName ?? string.Empty),
+            new Claim("FullName", updatedUser.UserName ?? string.Empty),
+            new Claim("Email", updatedUser.Email ?? string.Empty),
+            new Claim("UserId", updatedUser.UserId.ToString()),
+            new Claim("CompanyCode", updatedUser.CompanyCode ?? "000"),
+            new Claim("CompanyName", companyName),
+            new Claim("UserLoginId", updatedUser.UserLoginId ?? string.Empty),
+            new Claim("UserGroup", updatedUser.UserGroup ?? "Member"),
+            new Claim(ClaimTypes.Role, updatedUser.UserGroup ?? "Member")
+        };
 
-                // Add optional claims if they exist
                 if (!string.IsNullOrEmpty(updatedUser.Department))
-                {
                     claims.Add(new Claim("Department", updatedUser.Department));
-                }
 
                 if (!string.IsNullOrEmpty(updatedUser.MemberNo))
-                {
                     claims.Add(new Claim("MemberNo", updatedUser.MemberNo));
-                }
 
                 if (!string.IsNullOrEmpty(updatedUser.Branchcode))
-                {
                     claims.Add(new Claim("BranchCode", updatedUser.Branchcode));
-                }
 
                 var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
 
@@ -666,10 +762,45 @@ namespace EasyBlockSupport.Controllers
                 HttpContext.Session.SetString("CompanyCode", companyCode);
                 HttpContext.Session.SetString("CompanyName", companyName);
 
-                _logger.LogInformation($"Superuser {updatedUser.UserName} switched from {oldCompanyCode} to company: {companyName} ({companyCode})");
+                // ============================================================
+                // 7. AUDIT TRAIL  ← NEW
+                // ============================================================
+                await WriteAuditTrailAsync(
+                    actionType: "COMPANY_SWITCH",
+                    actionDescription: $"Superuser {updatedUser.UserName} switched from {oldCompanyName} ({oldCompanyCode}) to {companyName} ({companyCode})",
+                    tableName: "UserAccounts1",
+                    recordId: updatedUser.UserId.ToString(),
+                    oldValue: new
+                    {
+                        CompanyCode = oldCompanyCode,
+                        CompanyName = oldCompanyName
+                    },
+                    newValue: new
+                    {
+                        CompanyCode = companyCode,
+                        CompanyName = companyName
+                    },
+                    extraData: new
+                    {
+                        userId = updatedUser.UserId,
+                        userName = updatedUser.UserName,
+                        userGroup = updatedUser.UserGroup,
+                        fromCompany = oldCompanyCode,
+                        fromCompanyName = oldCompanyName,
+                        toCompany = companyCode,
+                        toCompanyName = companyName,
+                        isSuperuser = updatedUser.Superuser == 1
+                    },
+                    // Audit row is written under the NEW company so it's visible
+                    // in the SACCO the user just switched into.
+                    companyCode: companyCode);
+
+                _logger.LogInformation(
+                    $"Superuser {updatedUser.UserName} switched from {oldCompanyCode} to company: {companyName} ({companyCode})");
+
                 TempData["SuccessMessage"] = $"Successfully switched to Sacco: {companyName}";
 
-                // 7. Redirect to Home to refresh all data
+                // 8. Redirect to Home to refresh all data
                 return RedirectToAction("CompanySwitch", "Account");
             }
             catch (Exception ex)
@@ -679,6 +810,7 @@ namespace EasyBlockSupport.Controllers
                 return RedirectToAction("CompanySwitch");
             }
         }
+
 
         private string GenerateUserLoginId(string userName)
         {

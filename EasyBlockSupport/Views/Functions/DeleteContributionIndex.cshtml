@@ -1,0 +1,366 @@
+﻿@{
+    ViewData["Title"] = "Delete Contribution";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-10 mx-auto">
+            <div class="card">
+                <div class="col-12">
+                    <div class="d-flex align-items-center">
+                        <a asp-action="Index" class="btn btn-outline-secondary me-3">
+                            <i class="bi bi-arrow-left"></i> Back
+                        </a>
+                        <h2 class="page-title mb-0">
+                            <i class="bi bi-trash text-danger me-2"></i> Delete Contribution
+                        </h2>
+                    </div>
+                </div>
+
+                @if (TempData["ErrorMessage"] != null)
+                {
+                    <div class="alert alert-danger alert-dismissible fade show">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        @TempData["ErrorMessage"]
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                }
+                @if (TempData["SuccessMessage"] != null)
+                {
+                    <div class="alert alert-success alert-dismissible fade show">
+                        <i class="bi bi-check-circle-fill me-2"></i>
+                        @TempData["SuccessMessage"]
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                }
+
+                <div class="card-header bg-danger text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-search me-2"></i> Search Contribution to Delete
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        <strong>Warning:</strong> This action will permanently delete the contribution,
+                        its share entry, its GL posting, and adjust the member's balance.
+                        This cannot be undone.
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="searchTerm" class="form-label fw-bold">Receipt / Transaction Number</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control form-control-lg" id="searchTerm"
+                                   placeholder="Enter Receipt No or Transaction No..."
+                                   autocomplete="off" />
+                            <button type="button" class="btn btn-primary" id="searchBtn">
+                                <i class="bi bi-search"></i> Search
+                            </button>
+                        </div>
+                        <small class="text-muted">Press Enter or click Search</small>
+                    </div>
+
+                    <div id="contributionDetails" style="display:none;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Full-screen loading overlay (same as Index page) -->
+<div id="loadingOverlay"
+     style="display:none; position:fixed; top:0; left:0; width:100%; height:100%;
+            background:rgba(0,0,0,0.5); z-index:9999; text-align:center; padding-top:20%;">
+    <div class="spinner-border text-light" style="width:3rem; height:3rem;" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+    <div class="text-light mt-2" id="loadingMessage">Processing...</div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        // ============================================================
+        // HELPERS
+        // ============================================================
+        function showLoading(show, message) {
+            if (show) {
+                $('#loadingMessage').text(message || 'Processing...');
+                $('#loadingOverlay').fadeIn(150);
+            } else {
+                $('#loadingOverlay').fadeOut(150);
+            }
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('en-KE',
+                { style: 'currency', currency: 'KES' }).format(amount || 0);
+        }
+
+        // ============================================================
+        // SEARCH
+        // ============================================================
+        async function searchContribution() {
+            const term = document.getElementById('searchTerm').value.trim();
+            const box = document.getElementById('contributionDetails');
+
+            if (!term) {
+                Swal.fire('Input required', 'Please enter a receipt or transaction number.', 'warning');
+                return;
+            }
+
+            box.style.display = 'block';
+            box.innerHTML = '';
+
+            showLoading(true, 'Searching for contribution...');
+
+            try {
+                const resp = await fetch(
+                    `/Functions/GetContributionDetailsForDeletion?searchTerm=${encodeURIComponent(term)}`);
+                const data = await resp.json();
+
+                showLoading(false);
+
+                if (!data.success) {
+                    // Show inline error instead of an alert
+                    box.innerHTML = `
+                        <div class="alert alert-danger">
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                            ${escapeHtml(data.message)}
+                        </div>`;
+                    return;
+                }
+
+                render(data.contribution);
+            } catch (err) {
+                showLoading(false);
+                console.error(err);
+                box.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        Unexpected error: ${escapeHtml(err.message)}
+                    </div>`;
+            }
+        }
+
+        // ============================================================
+        // RENDER RESULT + CONFIRM FORM
+        // ============================================================
+        function render(c) {
+            const box = document.getElementById('contributionDetails');
+
+            box.innerHTML = `
+                <div class="card mt-3">
+                    <div class="card-header bg-light"><h6 class="mb-0">Contribution Details</h6></div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <small class="text-muted">Receipt No</small>
+                                <p class="fw-bold mb-0">${escapeHtml(c.receiptNo || 'N/A')}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <small class="text-muted">Transaction No</small>
+                                <p class="fw-bold mb-0">${escapeHtml(c.transactionNo || 'N/A')}</p>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <small class="text-muted">Member No</small>
+                                <p class="fw-bold mb-0">${escapeHtml(c.memberNo || 'N/A')}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <small class="text-muted">Member Name</small>
+                                <p class="fw-bold mb-0">${escapeHtml(c.memberName || 'N/A')}</p>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <small class="text-muted">Share Type</small>
+                                <p>${escapeHtml(c.shareTypeName || 'N/A')}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <small class="text-muted">Amount</small>
+                                <p class="fw-bold text-primary">${formatCurrency(c.amount)}</p>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <small class="text-muted">Transaction Date</small>
+                                <p>${escapeHtml(c.transactionDate || 'N/A')}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <small class="text-muted">Created By</small>
+                                <p>${escapeHtml(c.createdBy || 'N/A')}</p>
+                            </div>
+                        </div>
+
+                        <hr />
+
+                        <div class="mb-3">
+                            <label for="reason" class="form-label fw-bold text-danger">
+                                Reason for Deletion *
+                            </label>
+                            <textarea id="reason" class="form-control" rows="3"
+                                      placeholder="Provide a detailed reason..."></textarea>
+                        </div>
+
+                        <div class="mb-3 form-check">
+                            <input class="form-check-input" type="checkbox" id="confirmCheck">
+                            <label class="form-check-label text-danger" for="confirmCheck">
+                                I understand this will permanently delete the contribution
+                                and adjust the member's balances.
+                            </label>
+                        </div>
+
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="button" class="btn btn-secondary" onclick="clearSearch()">
+                                <i class="bi bi-x-circle"></i> Clear
+                            </button>
+                            <button type="button" class="btn btn-danger" id="deleteBtn" disabled>
+                                <i class="bi bi-trash"></i> Permanently Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>`;
+
+            // Enable delete button only when the checkbox is ticked
+            document.getElementById('confirmCheck').addEventListener('change', function () {
+                document.getElementById('deleteBtn').disabled = !this.checked;
+            });
+
+            // Delete button → SweetAlert2 confirm → POST form
+            document.getElementById('deleteBtn').addEventListener('click', function () {
+                confirmDelete(c);
+            });
+        }
+
+        // ============================================================
+        // CONFIRM + SUBMIT VIA SWEETALERT
+        // ============================================================
+        async function confirmDelete(c) {
+            const reason = document.getElementById('reason').value.trim();
+
+            if (!reason) {
+                Swal.fire('Reason required',
+                    'Please provide a reason for deleting the contribution.',
+                    'warning');
+                return;
+            }
+
+            const result = await Swal.fire({
+                title: 'Delete this contribution?',
+                html: `
+                    <p>You are about to <strong>permanently delete</strong> this contribution:</p>
+                    <table class="table table-sm text-start mt-2">
+                        <tr><td><strong>Receipt:</strong></td><td>${escapeHtml(c.receiptNo)}</td></tr>
+                        <tr><td><strong>Member:</strong></td><td>${escapeHtml(c.memberName || c.memberNo)}</td></tr>
+                        <tr><td><strong>Amount:</strong></td><td>${formatCurrency(c.amount)}</td></tr>
+                        <tr><td><strong>Reason:</strong></td><td>${escapeHtml(reason)}</td></tr>
+                    </table>
+                    <p class="text-danger mb-0">This cannot be undone.</p>
+                `,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Yes, delete it',
+                cancelButtonText: 'Cancel',
+                confirmButtonColor: '#dc3545',
+                cancelButtonColor: '#6c757d',
+                reverseButtons: true
+            });
+
+            if (!result.isConfirmed) return;
+
+            // Build a hidden form and submit it — keeps antiforgery intact
+            const form = document.createElement('form');
+            form.method = 'post';
+            form.action = '/Functions/ConfirmDeleteContribution';
+            form.style.display = 'none';
+
+            // Antiforgery token from the rendered Razor
+            const token = document.createElement('input');
+            token.type = 'hidden';
+            token.name = '__RequestVerificationToken';
+            token.value = '@Html.AntiForgeryToken()'.match(/value="([^"]+)"/)?.[1] ?? '';
+            form.appendChild(token);
+
+            const idInput = document.createElement('input');
+            idInput.type = 'hidden';
+            idInput.name = 'contributionId';
+            idInput.value = c.id;
+            form.appendChild(idInput);
+
+            const reasonInput = document.createElement('input');
+            reasonInput.type = 'hidden';
+            reasonInput.name = 'reason';
+            reasonInput.value = reason;
+            form.appendChild(reasonInput);
+
+            document.body.appendChild(form);
+
+            showLoading(true, 'Deleting contribution...');
+            form.submit();
+        }
+
+        // ============================================================
+        // CLEAR
+        // ============================================================
+        function clearSearch() {
+            document.getElementById('searchTerm').value = '';
+            document.getElementById('contributionDetails').style.display = 'none';
+            document.getElementById('contributionDetails').innerHTML = '';
+        }
+
+        // ============================================================
+        // WIRING
+        // ============================================================
+        $(document).ready(function () {
+            $('#searchBtn').on('click', searchContribution);
+
+            $('#searchTerm').on('keypress', function (e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    searchContribution();
+                }
+            });
+
+            // Show TempData success as a SweetAlert toast on load
+            @if (TempData["SuccessMessage"] != null)
+            {
+                    <text>
+                    Swal.fire({
+                        toast: true,
+                        position: 'top-end',
+                        icon: 'success',
+                        title: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(TempData["SuccessMessage"])),
+                        showConfirmButton: false,
+                        timer: 4000,
+                        timerProgressBar: true
+                    });
+                    </text>
+            }
+
+            @if (TempData["ErrorMessage"] != null)
+            {
+                    <text>
+                    Swal.fire({
+                        toast: true,
+                        position: 'top-end',
+                        icon: 'error',
+                        title: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(TempData["ErrorMessage"])),
+                        showConfirmButton: false,
+                        timer: 5000,
+                        timerProgressBar: true
+                    });
+                    </text>
+            }
+        });
+    </script>
+}

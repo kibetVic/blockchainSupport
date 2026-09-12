@@ -1,0 +1,483 @@
+﻿@{
+    ViewData["Title"] = "Delete Loan";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container-fluid">
+
+    <div class="row">
+        <div class="col-md-10 mx-auto">
+            <div class="col-8">
+                <div class="d-flex align-items-center">
+                    <a asp-action="AllLoans" class="btn btn-outline-secondary me-3">
+                        <i class="bi bi-arrow-left"></i> Back to Loans
+                    </a>
+                    <h2 class="page-title mb-0">
+                        <i class="bi bi-trash text-danger me-2"></i> Delete Loan
+                    </h2>
+                </div>
+            </div>
+
+            @if (TempData["ErrorMessage"] != null)
+            {
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    @TempData["ErrorMessage"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            }
+
+            @if (TempData["SuccessMessage"] != null)
+            {
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <i class="bi bi-check-circle-fill me-2"></i>
+                    @TempData["SuccessMessage"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            }
+
+            <div class="card">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-search me-2"></i> Search Loan to Delete
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        <strong>Warning:</strong> This action will permanently delete the loan and release all guarantors.
+                        This action cannot be undone.
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="loanNo" class="form-label fw-bold">Loan Number</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control form-control-lg" id="loanNo"
+                                   placeholder="Enter exact Loan Number (e.g. LO001M2603281926)"
+                                   autocomplete="off" />
+                            <button type="button" class="btn btn-primary" id="searchBtn">
+                                <i class="bi bi-search"></i> Search
+                            </button>
+                        </div>
+                        <small class="text-muted">
+                            Enter the full loan number. Only an exact match will be shown.
+                        </small>
+                    </div>
+
+                    <div id="loanDetails" style="display: none;">
+                        <!-- Loan details will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Full-screen loading overlay (matches Index page) -->
+<div id="loadingOverlay"
+     style="display:none; position:fixed; top:0; left:0; width:100%; height:100%;
+            background:rgba(0,0,0,0.5); z-index:9999; text-align:center; padding-top:20%;">
+    <div class="spinner-border text-light" style="width:3rem; height:3rem;" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+    <div class="text-light mt-2" id="loadingMessage">Processing...</div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        // ============================================================
+        // HELPERS
+        // ============================================================
+        function showLoading(show, message) {
+            if (show) {
+                $('#loadingMessage').text(message || 'Processing...');
+                $('#loadingOverlay').fadeIn(150);
+            } else {
+                $('#loadingOverlay').fadeOut(150);
+            }
+        }
+
+        function escapeHtml(text) {
+            if (text === null || text === undefined) return '';
+            const div = document.createElement('div');
+            div.textContent = String(text);
+            return div.innerHTML;
+        }
+
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('en-KE',
+                { style: 'currency', currency: 'KES' }).format(amount || 0);
+        }
+
+        // ============================================================
+        // SEARCH LOAN
+        // ============================================================
+        async function searchLoan() {
+            const term = document.getElementById('loanNo').value.trim();
+            const detailsDiv = document.getElementById('loanDetails');
+
+            if (!term) {
+                Swal.fire('Input required',
+                    'Please enter a loan number or member number.',
+                    'warning');
+                return;
+            }
+
+            detailsDiv.style.display = 'block';
+            detailsDiv.innerHTML = '';
+
+            showLoading(true, 'Searching for loan...');
+
+            try {
+                const response = await fetch(
+                    `/Functions/GetLoanDetailsForDeletion?searchTerm=${encodeURIComponent(term)}`);
+                const data = await response.json();
+
+                showLoading(false);
+
+                if (data.success) {
+                    displayLoanDetails(data.loan);
+                } else {
+                    detailsDiv.innerHTML = `
+                        <div class="alert alert-danger">
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                            <strong>Error:</strong> ${escapeHtml(data.message)}
+                        </div>`;
+                }
+            } catch (error) {
+                showLoading(false);
+                console.error('Error:', error);
+                detailsDiv.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        An error occurred while searching for the loan.
+                        Please make sure the loan number or member number is correct.
+                    </div>`;
+            }
+        }
+
+        // ============================================================
+        // RENDER LOAN DETAILS + CONFIRM FORM
+        // ============================================================
+        function displayLoanDetails(loan) {
+            const detailsDiv = document.getElementById('loanDetails');
+
+            let statusClass = '';
+            switch (loan.status) {
+                case 'Draft':          statusClass = 'bg-secondary'; break;
+                case 'Submitted':      statusClass = 'bg-info';      break;
+                case 'UnderAppraisal': statusClass = 'bg-warning';   break;
+                case 'Approved':       statusClass = 'bg-primary';   break;
+                case 'Endorsed':       statusClass = 'bg-success';   break;
+                case 'Disbursed':      statusClass = 'bg-success';   break;
+                default:               statusClass = 'bg-secondary';
+            }
+
+            detailsDiv.innerHTML = `
+                <div class="card mt-3">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0">Loan Details</h6>
+                    </div>
+                    <div class="card-body">
+
+                        ${loan.otherLoansForMember && loan.otherLoansForMember.length > 0 ? `
+                        <div class="alert alert-warning">
+                            <i class="bi bi-info-circle-fill me-2"></i>
+                            <strong>Note:</strong> this member has
+                            <strong>${loan.otherLoansForMember.length}</strong> other loan(s):
+                            <ul class="mb-0 mt-1">
+                                ${loan.otherLoansForMember.map(x =>
+                                    `<li>
+                                       <a href="#" class="other-loan-link" data-loan-no="${escapeHtml(x)}">
+                                          <code>${escapeHtml(x)}</code>
+                                       </a>
+                                     </li>`).join('')}
+                            </ul>
+                            Click a loan number above to load it instead.
+                        </div>` : ''}
+
+                        <div class="row mb-3">
+                            <div class="col-md-3">
+                                <small class="text-muted">Loan Number</small>
+                                <p class="fw-bold mb-0">${escapeHtml(loan.loanNo)}</p>
+                            </div>
+                            <div class="col-md-3">
+                                <small class="text-muted">Status</small>
+                                <p><span class="badge ${statusClass}">${escapeHtml(loan.status)}</span></p>
+                            </div>
+                            <div class="col-md-3">
+                                <small class="text-muted">Member Number</small>
+                                <p class="fw-bold mb-0">${escapeHtml(loan.memberNo)}</p>
+                            </div>
+                            <div class="col-md-3">
+                                <small class="text-muted">Member Name</small>
+                                <p class="fw-bold mb-0">${escapeHtml(loan.memberName || 'N/A')}</p>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-3">
+                                <small class="text-muted">Loan Type</small>
+                                <p>${escapeHtml(loan.loanType || 'N/A')}</p>
+                            </div>
+                            <div class="col-md-3">
+                                <small class="text-muted">Principal Amount</small>
+                                <p class="fw-bold text-primary">${formatCurrency(loan.principalAmount)}</p>
+                            </div>
+                            <div class="col-md-3">
+                                <small class="text-muted">Application Date</small>
+                                <p>${escapeHtml(loan.applicationDate || 'N/A')}</p>
+                            </div>
+                            <div class="col-md-3">
+                                <small class="text-muted">Interest Rate</small>
+                                <p>${loan.interestRate || 0}%</p>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <small class="text-muted">Repayment Period</small>
+                                <p>${loan.repayPeriod || 0} months</p>
+                            </div>
+                            <div class="col-md-6">
+                                <small class="text-muted">Repayment Method</small>
+                                <p>${escapeHtml(loan.repayMethod || 'N/A')}</p>
+                            </div>
+                        </div>
+
+                        ${loan.guarantors && loan.guarantors.length > 0 ? `
+                        <div class="mb-3">
+                            <small class="text-muted fw-bold">Guarantors (${loan.guarantors.length})</small>
+                            <div class="table-responsive mt-2">
+                                <table class="table table-sm table-bordered">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Member No</th>
+                                            <th>Name</th>
+                                            <th class="text-end">Amount</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${loan.guarantors.map(g => `
+                                            <tr>
+                                                <td>${escapeHtml(g.memberNo)}</td>
+                                                <td>${escapeHtml(g.name || 'N/A')}</td>
+                                                <td class="text-end">${formatCurrency(g.amount)}</td>
+                                            </tr>`).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        ` : '<div class="alert alert-secondary">No member guarantors assigned to this loan.</div>'}
+
+                        ${loan.collateralGuarantees && loan.collateralGuarantees.length > 0 ? `
+                        <div class="mb-3">
+                            <small class="text-muted fw-bold">Collateral Guarantees (${loan.collateralGuarantees.length})</small>
+                            <div class="table-responsive mt-2">
+                                <table class="table table-sm table-bordered">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Collateral Type</th>
+                                            <th>Document No</th>
+                                            <th class="text-end">Market Value</th>
+                                            <th class="text-end">Guarantee Amount</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${loan.collateralGuarantees.map(c => `
+                                            <tr>
+                                                <td>${escapeHtml(c.colCode)}</td>
+                                                <td>${escapeHtml(c.docNo)}</td>
+                                                <td class="text-end">${formatCurrency(c.marketValue)}</td>
+                                                <td class="text-end">${formatCurrency(c.guaranteeAmount)}</td>
+                                            </tr>`).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        ` : '<div class="alert alert-secondary">No collateral guarantees assigned to this loan.</div>'}
+
+                        ${loan.hasEndorsement ? `
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle-fill me-2"></i>
+                            <strong>Note:</strong> This loan has been endorsed/disbursed.
+                            Deleting it will also cancel the cheque.
+                        </div>` : ''}
+
+                        <hr />
+
+                        <div class="mb-3">
+                            <label for="reason" class="form-label fw-bold text-danger">Reason for Deletion *</label>
+                            <textarea id="reason" class="form-control" rows="3"
+                                      placeholder="Please provide a detailed reason for deleting this loan..."></textarea>
+                            <small class="text-muted">This reason will be recorded in the audit trail</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="confirmCheck">
+                                <label class="form-check-label text-danger" for="confirmCheck">
+                                    I understand that this action will permanently delete the loan
+                                    and release all guarantors. This cannot be undone.
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="button" class="btn btn-secondary" onclick="clearSearch()">
+                                <i class="bi bi-x-circle"></i> Clear
+                            </button>
+                            <button type="button" class="btn btn-danger" id="deleteBtn" disabled>
+                                <i class="bi bi-trash"></i> Permanently Delete Loan
+                            </button>
+                        </div>
+                    </div>
+                </div>`;
+
+            // Enable delete button when checkbox is ticked
+            document.getElementById('confirmCheck').addEventListener('change', function () {
+                document.getElementById('deleteBtn').disabled = !this.checked;
+            });
+
+            // Delete button → SweetAlert confirm → programmatic POST
+            document.getElementById('deleteBtn').addEventListener('click', function () {
+                confirmDelete(loan);
+            });
+
+            // Wire up the "other loans" pick-list links
+            document.querySelectorAll('#loanDetails .other-loan-link').forEach(el => {
+                el.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    document.getElementById('loanNo').value = this.dataset.loanNo;
+                    searchLoan();
+                });
+            });
+        }
+
+        // ============================================================
+        // CONFIRM + SUBMIT VIA SWEETALERT
+        // ============================================================
+        async function confirmDelete(loan) {
+            const reason = document.getElementById('reason').value.trim();
+
+            if (!reason) {
+                Swal.fire('Reason required',
+                    'Please provide a reason for deleting this loan.',
+                    'warning');
+                return;
+            }
+
+            const result = await Swal.fire({
+                title: 'Delete this loan?',
+                html: `
+                    <p>You are about to <strong>permanently delete</strong> this loan:</p>
+                    <table class="table table-sm text-start mt-2">
+                        <tr><td><strong>Loan No:</strong></td><td>${escapeHtml(loan.loanNo)}</td></tr>
+                        <tr><td><strong>Member:</strong></td><td>${escapeHtml(loan.memberName || loan.memberNo)}</td></tr>
+                        <tr><td><strong>Amount:</strong></td><td>${formatCurrency(loan.principalAmount)}</td></tr>
+                        <tr><td><strong>Status:</strong></td><td>${escapeHtml(loan.status)}</td></tr>
+                        <tr><td><strong>Reason:</strong></td><td>${escapeHtml(reason)}</td></tr>
+                    </table>
+                    <p class="text-danger mb-0">This cannot be undone.</p>
+                `,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Yes, delete it',
+                cancelButtonText: 'Cancel',
+                confirmButtonColor: '#dc3545',
+                cancelButtonColor: '#6c757d',
+                reverseButtons: true
+            });
+
+            if (!result.isConfirmed) return;
+
+            // Build a hidden form and submit it — keeps antiforgery intact
+            const form = document.createElement('form');
+            form.method = 'post';
+            form.action = '/Functions/ConfirmDeleteLoan';
+            form.style.display = 'none';
+
+            // Antiforgery token from the page
+            const tokenInput = document.querySelector('input[name="__RequestVerificationToken"]');
+            if (tokenInput) {
+                form.appendChild(tokenInput.cloneNode(true));
+            }
+
+            const loanInput = document.createElement('input');
+            loanInput.type = 'hidden';
+            loanInput.name = 'loanNo';
+            loanInput.value = loan.loanNo;
+            form.appendChild(loanInput);
+
+            const reasonInput = document.createElement('input');
+            reasonInput.type = 'hidden';
+            reasonInput.name = 'reason';
+            reasonInput.value = reason;
+            form.appendChild(reasonInput);
+
+            document.body.appendChild(form);
+
+            showLoading(true, 'Deleting loan...');
+            form.submit();
+        }
+
+        // ============================================================
+        // CLEAR
+        // ============================================================
+        function clearSearch() {
+            document.getElementById('loanNo').value = '';
+            document.getElementById('loanDetails').style.display = 'none';
+            document.getElementById('loanDetails').innerHTML = '';
+        }
+
+        // ============================================================
+        // WIRING
+        // ============================================================
+        $(document).ready(function () {
+            $('#searchBtn').on('click', searchLoan);
+
+            $('#loanNo').on('keypress', function (e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    searchLoan();
+                }
+            });
+
+            // Toast success from TempData
+            @if (TempData["SuccessMessage"] != null)
+            {
+                    <text>
+                    Swal.fire({
+                        toast: true,
+                        position: 'top-end',
+                        icon: 'success',
+                        title: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(TempData["SuccessMessage"])),
+                        showConfirmButton: false,
+                        timer: 4000,
+                        timerProgressBar: true
+                    });
+                    </text>
+            }
+
+            // Toast error from TempData
+            @if (TempData["ErrorMessage"] != null)
+            {
+                    <text>
+                    Swal.fire({
+                        toast: true,
+                        position: 'top-end',
+                        icon: 'error',
+                        title: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(TempData["ErrorMessage"])),
+                        showConfirmButton: false,
+                        timer: 5000,
+                        timerProgressBar: true
+                    });
+                    </text>
+            }
+        });
+    </script>
+}
+
+@* Hidden antiforgery token — cloned into the dynamically built delete form *@
+@Html.AntiForgeryToken()

@@ -11,15 +11,11 @@ namespace EasyBlockSupport.Services
     {
         Task<string> GenerateTransactionHash(object data);
         Task<Block> CreateBlock(List<BlockchainTransaction> transactions, string previousHash);
-        //Task<BlockchainTransaction> CreateTransaction(string type, string memberNo, string companyCode,
-        //    decimal amount, string offChainRefId, object data);
         Task<bool> VerifyTransaction(string transactionId);
         Task<List<BlockchainTransaction>> GetMemberTransactions(string memberNo, string currentCompanyCode);
         Task<BlockchainTransaction> AddToBlockchain(BlockchainTransaction transaction);
         Task<int> ProcessPendingTransactionsAsync();
         Task<BlockchainTransaction?> GetTransactionAsync(string transactionId);
-        //Task<BlockchainTransaction> CreateAndAddTransactionAsync(string type, string memberNo, string companyCode,
-        //    decimal amount, string offChainRefId, object data);
         Task<BlockchainStatus> GetBlockchainStatus();
         Task<Block> CreateGenesisBlock();
         Task<int> GetBlockchainHeight();

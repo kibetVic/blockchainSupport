@@ -329,8 +329,14 @@
 
                     @* <div class="mb-3 " style="float:right;"><a asp-action="MemberLogin">Member Login</a></div> *@
 
-                    <button type="submit" class="btn-login">
+                    @*<button type="submit" class="btn-login">
                         <i class="fas fa-sign-in-alt me-2"></i>Login to Dashboard
+                    </button>*@
+
+                    <button type="submit" class="btn-login" id="loginBtn">
+                        <span id="loginBtnContent">
+                            <i class="fas fa-sign-in-alt me-2"></i>Login to Dashboard
+                        </span>
                     </button>
 
                     <div class="text-center mt-3">
@@ -340,11 +346,11 @@
                     </div>
 
                     @* <div class="text-center mt-3">
-                        <p class="small mb-0">
-                            Don't have an account?
-                            <a asp-action="SignUp" class="signup-link">Sign Up</a>
-                        </p>
-                    </div> *@
+            <p class="small mb-0">
+                Don't have an account?
+                <a asp-action="SignUp" class="signup-link">Sign Up</a>
+            </p>
+        </div> *@
 
                     <div class="footer-note">
                         <i class="fas fa-lock me-1"></i>
@@ -379,16 +385,43 @@
             }
         }
 
-        $(document).ready(function() {
+        $(document).ready(function () {
             // Clear validation messages on input
-            $('input').on('input', function() {
+            $('input').on('input', function () {
                 $(this).removeClass('is-invalid');
             });
 
             // Auto-hide success message after 5 seconds
-            setTimeout(function() {
+            setTimeout(function () {
                 $('.alert-success').fadeOut('slow');
             }, 5000);
+
+            // ============================================================
+            // LOGIN BUTTON SPINNER  —  pure visual, no validation logic
+            // ============================================================
+            $('#loginBtn').closest('form').on('submit', function () {
+                // Swap the button contents to a spinner and disable the button.
+                // Nothing else. No validation checks. No preventDefault.
+                var $btn = $('#loginBtn');
+                $btn.prop('disabled', true);
+                $('#loginBtnContent').html(
+                    '<span class="spinner-border spinner-border-sm me-2" ' +
+                    'role="status" aria-hidden="true"></span>Signing in...'
+                );
+
+                // Let the browser POST the form.
+                return true;
+            });
+
+            // If the user hits Back from the dashboard, re-enable the button.
+            window.addEventListener('pageshow', function (event) {
+                if (event.persisted) {
+                    $('#loginBtn').prop('disabled', false);
+                    $('#loginBtnContent').html(
+                        '<i class="fas fa-sign-in-alt me-2"></i>Login to Dashboard'
+                    );
+                }
+            });
         });
     </script>
 </body>

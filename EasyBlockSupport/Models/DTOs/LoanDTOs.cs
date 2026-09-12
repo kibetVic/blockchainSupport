@@ -5,6 +5,46 @@ using System.Text.Json.Serialization;
 
 namespace EasyBlockSupport.Models.DTOs
 {
+    public class LoanDeletionInfoDTO
+    {
+        public string LoanNo { get; set; } = string.Empty;
+        public string MemberNo { get; set; } = string.Empty;
+        public string MemberName { get; set; } = string.Empty;
+        public string LoanType { get; set; } = string.Empty;
+        public decimal PrincipalAmount { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public string ApplicationDate { get; set; } = string.Empty;
+        public decimal InterestRate { get; set; }
+        public int RepayPeriod { get; set; }
+        public string RepayMethod { get; set; } = string.Empty;
+        public bool HasEndorsement { get; set; }
+
+        public List<GuarantorLineDTO> Guarantors { get; set; } = new();
+        public List<CollateralLineDTO> CollateralGuarantees { get; set; } = new();
+
+        /// <summary>
+        /// When the search matched on MemberNo but the member has multiple
+        /// loans, this lists every matching LoanNo so the view can offer
+        /// a pick-list.
+        /// </summary>
+        public List<string> OtherLoansForMember { get; set; } = new();
+    }
+
+    public class GuarantorLineDTO
+    {
+        public string MemberNo { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public decimal Amount { get; set; }
+    }
+
+    public class CollateralLineDTO
+    {
+        public string ColCode { get; set; } = string.Empty;
+        public string DocNo { get; set; } = string.Empty;
+        public decimal MarketValue { get; set; }
+        public decimal GuaranteeAmount { get; set; }
+    }
+
     // Loan Application DTO
     public class LoanApplicationDTO
     {

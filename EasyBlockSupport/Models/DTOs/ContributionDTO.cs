@@ -5,32 +5,6 @@ using System.Text.Json.Serialization;
 
 namespace EasyBlockSupport.Models.DTOs
 {
-    //public class ContributionDTO
-    //{
-    //    [Required(ErrorMessage = "Member number is required")]
-    //    public string MemberNo { get; set; } = null!;
-
-    //    [Required(ErrorMessage = "Transaction date is required")]
-    //    public DateTime TransactionDate { get; set; } = DateTime.Now;
-
-    //    [Required(ErrorMessage = "Share type is required")]
-    //    public string SharesCode { get; set; } = null!;
-
-    //    [Required(ErrorMessage = "Amount is required")]
-    //    [Range(0.01, double.MaxValue, ErrorMessage = "Amount must be greater than 0")]
-    //    public decimal Amount { get; set; }
-    //    public string? ReceiptNo { get; set; }
-
-    //    [StringLength(500, ErrorMessage = "Remarks cannot exceed 500 characters")]
-    //    public string? Remarks { get; set; }
-    //    public string? PaymentMethod { get; set; } = "CASH";
-    //    public string? ReferenceNo { get; set; }
-    //    public string? PromptPayment { get; set; }
-    //    public string CreatedBy { get; set; } = null!;
-    //    public string CompanyCode { get; set; } = null!;
-    //    public DateTime? DepositedDate { get; internal set; }
-    //    public string? TransactionNo { get; internal set; }
-    //}
 
     public class ContributionResponseDTO
     {
@@ -64,6 +38,19 @@ namespace EasyBlockSupport.Models.DTOs
         public bool IsSignatureVerified { get; set; }
         public string Status { get; set; }
         public string? PaymentMethod { get; set; }
+    }
+
+    public class JournalActionResultDTO
+    {
+        public bool Success { get; set; }
+        public string Message { get; set; } = string.Empty;
+        public string VoucherNo { get; set; } = string.Empty;
+        public string? ReversalVoucherNo { get; set; }
+        public string? BlockchainTxId { get; set; }
+        public string? BlockHash { get; set; }
+        public int GlRowsAffected { get; set; }
+        public decimal TotalDebit { get; set; }
+        public decimal TotalCredit { get; set; }
     }
 
     public class ShareTypeDTO

@@ -67,22 +67,67 @@
 
     <style>
         input:invalid {
-    box-shadow: none;
-}
+            box-shadow: none;
+        }
 
-select:invalid {
-    box-shadow: none;
-}
+        select:invalid {
+            box-shadow: none;
+        }
 
 
-input:invalid:focus {
-    outline: none;
-}
-        
+        input:invalid:focus {
+            outline: none;
+        }
+
         img.logo-rounded {
             border-radius: 5px;
         }
+
+        /* ============================================ */
+        /* WEATHER + LOCATION WIDGET                    */
+        /* ============================================ */
+        .header-center-widget {
+            min-width: 0; /* allow flex shrink */
+        }
+
+        .weather-widget {
+            background: rgba(0, 0, 0, 0.03);
+            border-radius: 2rem;
+            padding: 0.35rem 1rem;
+            transition: background 0.2s ease;
+            max-width: 100%;
+        }
+
+            .weather-widget:hover {
+                background: rgba(0, 0, 0, 0.06);
+            }
+
+            .weather-widget .vr {
+                align-self: stretch;
+                margin: 0.25rem 0;
+            }
+
+        #weatherLocationName,
+        #weatherTemp,
+        #weatherCondition {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 200px;
+        }
+
+        #weatherIcon {
+            transition: transform 0.3s ease;
+        }
+
+        /* Hide the widget on small screens where header is tight */
+        @@media (max-width: 767.98px) {
+            .header-center-widget {
+                display: none !important;
+            }
+        }
     </style>
+
 
     @RenderSection("Styles", required: false)
 
@@ -147,6 +192,32 @@ input:invalid:focus {
                     </li>
                 </ul>
                 <!--end::Start Navbar Links-->
+                <!-- ============================================================ -->
+                <!-- CENTER WIDGET — WEATHER + LOCATION                           -->
+                <!-- ============================================================ -->
+                <div class="header-center-widget flex-grow-1 d-flex justify-content-center">
+                    <div id="weatherLocationWidget" class="weather-widget d-flex align-items-center gap-3">
+
+                        <!-- Location (place name) — icon injected by JS -->
+                        <div class="weather-location d-flex align-items-center">
+                            <span id="weatherLocationName" class="fw-semibold small d-flex align-items-center">
+                                <span class="spinner-border spinner-border-sm text-muted" role="status"></span>
+                                <span class="ms-1 text-muted">Locating…</span>
+                            </span>
+                        </div>
+
+                        <!-- Vertical divider -->
+                        <div class="vr text-muted opacity-25"></div>
+
+                        <!-- Weather (icon + temp + condition) -->
+                        <div class="weather-info d-flex align-items-center">
+                            <i id="weatherIcon" class="bi bi-cloud-sun text-warning me-1 fs-5"></i>
+                            <span id="weatherTemp" class="fw-bold">--°</span>
+                            <span id="weatherCondition" class="text-muted small ms-2">--</span>
+                        </div>
+                    </div>
+                </div>
+
                 <!--begin::End Navbar Links-->
                 <ul class="navbar-nav ms-auto">
                     <!--begin::Fullscreen Toggle-->
@@ -221,35 +292,31 @@ input:invalid:focus {
             <div class="sidebar-brand">
                 <!--begin::Brand Link-->
                 <a asp-controller="Home" asp-action="Index" class="brand-link">
-                    <!--begin::Brand Image-->
-                    <!-- Show only the role/user group -->
-                    <li>
-                        <div class="dropdown-item-text">
-                            <i class="fas fa-user-tag me-2"></i>
-                            <strong class="brand-text fw-bold fs-5">
-                                @{
-                                    // Debug: Check available claims
-                                    var userGroupClaim = User.FindFirst("UserGroup")?.Value;
-                                    var roleClaim = User.FindFirst(ClaimTypes.Role)?.Value;
-                                    var userName = User.Identity?.Name;
+                    <!--begin::Brand Icon + Text-->
+                    <div class="dropdown-item-text d-flex align-items-center">
+                        <i class="bi bi-person-badge me-2 text-primary fs-4"></i>
+                        <strong class="brand-text fw-bold fs-5">
+                            @{
+                                var userGroupClaim = User.FindFirst("UserGroup")?.Value;
+                                var roleClaim = User.FindFirst(ClaimTypes.Role)?.Value;
+                                var userName = User.Identity?.Name;
 
-                                    if (!string.IsNullOrEmpty(userGroupClaim))
-                                    {
-                                        @userGroupClaim
-                                    }
-                                    else if (!string.IsNullOrEmpty(roleClaim))
-                                    {
-                                        @roleClaim
-                                    }
-                                    else
-                                    {
-                                        @userName
-                                    }
+                                if (!string.IsNullOrEmpty(userGroupClaim))
+                                {
+                                    @userGroupClaim
                                 }
-                            </strong>
-                        </div>
-                    </li>
-                    <!--end::Brand Text-->
+                                else if (!string.IsNullOrEmpty(roleClaim))
+                                {
+                                    @roleClaim
+                                }
+                                else
+                                {
+                                    @userName
+                                }
+                            }
+                        </strong>
+                    </div>
+                    <!--end::Brand Icon + Text-->
                 </a>
                 <!--end::Brand Link-->
             </div>
@@ -357,6 +424,52 @@ input:invalid:focus {
                                 </li>
                             </ul>
                         </li> 
+
+                        <li class="nav-item">
+                            <a href="#" class="nav-link">
+                                <i class="nav-icon bi bi-tools"></i>
+                                <p>
+                                    <b>Function</b>
+                                    <i class="nav-arrow bi bi-chevron-right float-end"></i>
+                                </p>
+                            </a>
+                            <ul class="nav nav-treeview ms-2 border-start border-primary border-opacity-25 ps-2">
+
+                                <li class="nav-item">
+                                    <a class="nav-link" asp-controller="Functions" asp-action="Reverse">
+                                        <i class="bi bi-arrow-counterclockwise me-2"></i>
+                                        <p>Reverse transaction</p>
+                                    </a>
+                                </li>
+
+                                <li class="nav-item">
+                                    <a class="nav-link" asp-controller="Functions" asp-action="DeleteContributionIndex">
+                                        <i class="bi bi-receipt-cutoff me-2"></i>
+                                        <p>Delete Transaction</p>
+                                    </a>
+                                </li>
+
+                                <li class="nav-item">
+                                    <a class="nav-link" asp-controller="Functions" asp-action="DeleteLoanIndex">
+                                        <i class="bi bi-trash3 me-2"></i>
+                                        <p>Delete Loan</p>
+                                    </a>
+                                </li>
+
+                                <li class="nav-item">
+                                    <a class="nav-link" asp-controller="Functions" asp-action="JournalActions">
+                                        <i class="bi bi-journal-text me-2"></i>
+                                        <p>Reverse / Delete Journal</p>
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link">
+                                <i class="bi bi-shield-check me-2"></i>
+                                <b>Trust Every Transaction</b>
+                            </a>
+                        </li>
                     </ul>
                 </nav>
             </div>
@@ -676,6 +789,161 @@ input:invalid:focus {
                 }
             });
         });
+
+
+        // ============================================================
+        // WEATHER + LOCATION WIDGET
+        // ============================================================
+        (function () {
+            const locEl      = document.getElementById('weatherLocationName');
+            const iconEl     = document.getElementById('weatherIcon');
+            const tempEl     = document.getElementById('weatherTemp');
+            const condEl     = document.getElementById('weatherCondition');
+
+            if (!locEl || !iconEl || !tempEl || !condEl) return;   // widget not on page
+
+            // --------------------------------------------------------
+            // Weather condition → Bootstrap Icon mapping
+            // Open-Meteo returns a WMO weather code (0..99)
+            // --------------------------------------------------------
+            function iconForCode(code) {
+                if (code === 0)                      return 'bi-sun';
+                if (code === 1)                      return 'bi-brightness-high';
+                if (code === 2)                      return 'bi-cloud-sun';
+                if (code === 3)                      return 'bi-clouds';
+                if (code >= 45 && code <= 48)        return 'bi-cloud-fog2';
+                if (code >= 51 && code <= 57)        return 'bi-cloud-drizzle';
+                if (code >= 61 && code <= 67)        return 'bi-cloud-rain';
+                if (code >= 71 && code <= 77)        return 'bi-cloud-snow';
+                if (code >= 80 && code <= 82)        return 'bi-cloud-rain-heavy';
+                if (code >= 85 && code <= 86)        return 'bi-cloud-snow';
+                if (code >= 95 && code <= 99)        return 'bi-cloud-lightning-rain';
+                return 'bi-cloud';
+            }
+
+            function textForCode(code) {
+                if (code === 0)                      return 'Clear';
+                if (code === 1)                      return 'Mainly clear';
+                if (code === 2)                      return 'Partly cloudy';
+                if (code === 3)                      return 'Overcast';
+                if (code >= 45 && code <= 48)        return 'Foggy';
+                if (code >= 51 && code <= 57)        return 'Drizzle';
+                if (code >= 61 && code <= 67)        return 'Rain';
+                if (code >= 71 && code <= 77)        return 'Snow';
+                if (code >= 80 && code <= 82)        return 'Rain showers';
+                if (code >= 85 && code <= 86)        return 'Snow showers';
+                if (code >= 95 && code <= 99)        return 'Thunderstorm';
+                return '—';
+            }
+
+            // --------------------------------------------------------
+            // Fail-safe state
+            // --------------------------------------------------------
+            function setUnavailable(reason) {
+                locEl.innerHTML     = '<i class="bi bi-geo text-muted me-1"></i><span class="text-muted small">Location unavailable</span>';
+                tempEl.textContent  = '--°';
+                condEl.textContent  = reason || '—';
+                iconEl.className    = 'bi bi-cloud text-muted me-1 fs-5';
+                console.warn('Weather widget:', reason);
+            }
+
+            // --------------------------------------------------------
+            // Fetch weather from Open-Meteo (no key)
+            // --------------------------------------------------------
+            async function loadWeather(lat, lon) {
+                try {
+                    const url =
+                        `https://api.open-meteo.com/v1/forecast` +
+                        `?latitude=${lat}&longitude=${lon}` +
+                        `&current=temperature_2m,weather_code` +
+                        `&timezone=auto`;
+
+                    const resp = await fetch(url, { cache: 'no-store' });
+                    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+
+                    const data = await resp.json();
+                    const current = data.current || {};
+                    const t   = current.temperature_2m;
+                    const code = current.weather_code;
+
+                    if (t === undefined || code === undefined)
+                        throw new Error('Malformed weather payload');
+
+                    tempEl.textContent = `${Math.round(t)}°C`;
+                    condEl.textContent = textForCode(code);
+                    iconEl.className   = `bi ${iconForCode(code)} text-warning me-1 fs-5`;
+                } catch (err) {
+                    setUnavailable('Weather unavailable');
+                }
+            }
+
+            // --------------------------------------------------------
+            // Reverse geocode coordinates → place name
+            // BigDataCloud — free, no key required
+            // --------------------------------------------------------
+            async function loadLocationName(lat, lon) {
+                try {
+                    const url =
+                        `https://api.bigdatacloud.net/data/reverse-geocode-client` +
+                        `?latitude=${lat}&longitude=${lon}&localityLanguage=en`;
+
+                    const resp = await fetch(url, { cache: 'no-store' });
+                    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+
+                    const data = await resp.json();
+                    const city    = data.city || data.locality || data.principalSubdivision || '';
+                    const country = data.countryName || '';
+
+                    let label = '';
+                    if (city && country)  label = `${city}, ${country}`;
+                    else if (city)        label = city;
+                    else if (country)     label = country;
+                    else                  label = `${lat.toFixed(2)}, ${lon.toFixed(2)}`;  // fallback
+
+                    locEl.innerHTML =
+                        `<i class="bi bi-geo-alt-fill text-primary me-1"></i>` +
+                        `<span class="fw-semibold small">${escapeHtml(label)}</span>`;
+                } catch (err) {
+                    // Keep whatever the browser told us from coords
+                    locEl.innerHTML =
+                        `<i class="bi bi-geo-alt-fill text-primary me-1"></i>` +
+                        `<span class="fw-semibold small">${lat.toFixed(2)}, ${lon.toFixed(2)}</span>`;
+                }
+            }
+
+            function escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = String(text ?? '');
+                return div.innerHTML;
+            }
+
+            // --------------------------------------------------------
+            // Boot
+            // --------------------------------------------------------
+            function init(lat, lon) {
+                loadLocationName(lat, lon);
+                loadWeather(lat, lon);
+                // Refresh weather every 15 minutes
+                setInterval(() => loadWeather(lat, lon), 15 * 60 * 1000);
+            }
+
+            if (!navigator.geolocation) {
+                setUnavailable('Geolocation not supported');
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                (pos) => init(pos.coords.latitude, pos.coords.longitude),
+                (err) => {
+                    // Permission denied, timeout, unavailable
+                    let reason = 'Location permission denied';
+                    if (err.code === err.POSITION_UNAVAILABLE) reason = 'Location unavailable';
+                    if (err.code === err.TIMEOUT)              reason = 'Location timeout';
+                    setUnavailable(reason);
+                },
+                { enableHighAccuracy: false, timeout: 8000, maximumAge: 5 * 60 * 1000 }
+            );
+        })();
         
 
     </script>
