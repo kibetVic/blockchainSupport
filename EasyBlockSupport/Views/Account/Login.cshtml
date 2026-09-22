@@ -18,27 +18,53 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 
     <style>
+        /* ============================================================ */
+        /* BACKGROUND — full-screen image with soft overlay for         */
+        /* readability. The card floats on top.                         */
+        /* ============================================================ */
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
         body {
-            background: #f5f7fa;
+            background-image: url('/images/LoginBackground.png');
+            background-size: cover;
+            background-position: center center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             padding: 20px;
-            margin: 0;
+            position: relative;
+            overflow-x: hidden;
         }
+
+            body::before {
+                content: "";
+                position: fixed;
+                inset: 0;
+                background: rgba(245, 247, 250, 0.55);
+                z-index: 0;
+                pointer-events: none;
+            }
 
         img.logo-rounded {
             border-radius: 5px;
         }
 
         .login-container {
+            position: relative;
+            z-index: 1;
             width: 100%;
             max-width: 900px;
             background: white;
             border-radius: 20px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.18);
             overflow: hidden;
         }
 
@@ -216,24 +242,24 @@
             color: #c53030;
         }
 
+        /* Responsive styles */
+        @@media (max-width: 768px) {
+            .login-row {
+                flex-direction: column;
+                min-height: auto;
+            }
 
-        {
-            flex-direction: column;
-            min-height: auto;
-        }
+            .image-section {
+                padding: 20px;
+            }
 
-        .image-section {
-            padding: 20px;
-        }
+            .form-section {
+                padding: 30px;
+            }
 
-        .form-section {
-            padding: 30px;
-        }
-
-        body {
-            padding: 10px;
-        }
-
+            body {
+                padding: 10px;
+            }
         }
     </style>
 </head>
@@ -320,18 +346,14 @@
                         </div>
                         <span asp-validation-for="Password" class="text-danger small"></span>
                     </div>
-                    @* <input type="hidden"  asp-for="MemberLogin" value="false" /> *@
+                    @* <input type="hidden" asp-for="MemberLogin" value="false" /> *@
 
                     <div class="form-check mb-3">
                         <input type="checkbox" id="rememberMe" class="form-check-input" />
                         <label class="form-check-label small" for="rememberMe">Remember me</label>
                     </div>
 
-                    @* <div class="mb-3 " style="float:right;"><a asp-action="MemberLogin">Member Login</a></div> *@
-
-                    @*<button type="submit" class="btn-login">
-                        <i class="fas fa-sign-in-alt me-2"></i>Login to Dashboard
-                    </button>*@
+                    @* <div class="mb-3" style="float:right;"><a asp-action="MemberLogin">Member Login</a></div> *@
 
                     <button type="submit" class="btn-login" id="loginBtn">
                         <span id="loginBtnContent">
@@ -339,18 +361,11 @@
                         </span>
                     </button>
 
-                    <div class="text-center mt-3">
+                    @* <div class="text-center mt-3">
                         <a asp-action="ForgotPassword" class="text-decoration-none">
                             <i class="fas fa-key me-1"></i>Forgot Password?
                         </a>
-                    </div>
-
-                    @* <div class="text-center mt-3">
-            <p class="small mb-0">
-                Don't have an account?
-                <a asp-action="SignUp" class="signup-link">Sign Up</a>
-            </p>
-        </div> *@
+                    </div> *@
 
                     <div class="footer-note">
                         <i class="fas fa-lock me-1"></i>
@@ -400,8 +415,6 @@
             // LOGIN BUTTON SPINNER  —  pure visual, no validation logic
             // ============================================================
             $('#loginBtn').closest('form').on('submit', function () {
-                // Swap the button contents to a spinner and disable the button.
-                // Nothing else. No validation checks. No preventDefault.
                 var $btn = $('#loginBtn');
                 $btn.prop('disabled', true);
                 $('#loginBtnContent').html(
@@ -409,7 +422,6 @@
                     'role="status" aria-hidden="true"></span>Signing in...'
                 );
 
-                // Let the browser POST the form.
                 return true;
             });
 
