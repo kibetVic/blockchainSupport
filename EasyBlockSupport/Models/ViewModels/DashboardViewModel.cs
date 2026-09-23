@@ -40,7 +40,13 @@ namespace EasyBlockSupport.Models.ViewModels
 
         // ===== Recent Activity =====
         public List<RecentTransactionDto> RecentTransactions { get; set; } = new();
+        // ===== County Admin View support (mirrors DashboardVM) =====
+        public bool IsCountyView { get; set; } = false;
+        public string? CountyName { get; set; }
+        public List<string> CountyCompanyCodes { get; set; } = new List<string>();
+        public List<CompanyInfo> Companies { get; set; } = new List<CompanyInfo>();
     }
+
 
     public class RecentTransactionDto
     {
